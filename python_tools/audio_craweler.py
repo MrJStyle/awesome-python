@@ -46,7 +46,6 @@ async def get_bilibili_video_title(url: str) -> str:
 async def download_bilibili_video(url: str, output_dir: str) -> None:
     video_title = await get_bilibili_video_title(url)
 
-    print(video_title)
     command = f'you-get --output-dir {output_dir} "{url}"'
 
     stdout, stderr, return_code = await exec_command(command)
@@ -87,27 +86,33 @@ async def convert_audio_to_text(audio_file_path: str) -> str:
     return transcript.text
 
 
-async def convert_video_audio_to_text(url: str, output_dir: str) -> None:
-    print("step 1 - get video title")
+async def convert_video_audio_to_text(url: str, output_dir: str, debug: bool = False) -> None:
+    if debug:
+        print("step 1 - get video title")
     title = await get_bilibili_video_title(url)
 
-    print("step 2 - download video into local")
+    print(f"generating video copywriting from {title}")
+
+    if debug:
+        print("step 2 - download video into local")
     await download_bilibili_video(url, output_dir)
 
-    print("step 3 - extract audio from video")
+    if debug:
+        print("step 3 - extract audio from video")
     await extract_audio_from_video(
         str(Path(output_dir) / f"{title}.mp4"),
         str(Path(output_dir) / f"{title}.mp3"),
     )
 
-    print("step 4 - convert audio to text")
+    if debug:
+        print("step 4 - convert audio to text")
     text = await convert_audio_to_text(str(Path(output_dir) / f"{title}.mp3"))
     print(text)
 
 
 async def main():
     # url = "https://www.bilibili.com/video/BV1Mh4y127bX/?spm_id_from=444.41.list.card_archive.click&vd_source=e64200d4ea932bdbc9eb93c54976d3cf"
-    url = "https://www.bilibili.com/video/BV1Ta4y1c7en/?spm_id_from=333.1007.tianma.2-1-4.click&vd_source=e64200d4ea932bdbc9eb93c54976d3cf"
+    url = "https://www.bilibili.com/video/BV1n14y1m7F2/?spm_id_from=333.337.search-card.all.click&vd_source=e64200d4ea932bdbc9eb93c54976d3cf"
     output_dir = "/Users/luominzhi/Scratch/audio/"
 
     await asyncio.gather(
