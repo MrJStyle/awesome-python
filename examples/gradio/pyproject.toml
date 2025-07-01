@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "gradio-example"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "gradio_example"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+gradio = "^4.20.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
