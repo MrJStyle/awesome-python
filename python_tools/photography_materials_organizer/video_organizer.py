@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-视频素材文件整理脚本
-用于将视频文件按照创建日期和设备名称整理到指定文件夹
+媒体文件整理脚本
+用于将视频和图片文件按照创建日期和设备名称整理到指定文件夹
 """
 
 import os
@@ -15,7 +15,15 @@ import logging
 # 支持的视频文件扩展名
 VIDEO_EXTENSIONS = {
     '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', 
-    '.m4v', '.3gp', '.mpg', '.mpeg', '.ts', '.mts', '.m2ts', '.insv'
+    '.m4v', '.3gp', '.mpg', '.mpeg', '.ts', '.mts', '.m2ts', '.insv', '.xml'
+}
+
+# 支持的图片文件扩展名
+IMAGE_EXTENSIONS = {
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp',
+    '.svg', '.ico', '.raw', '.cr2', '.nef', '.arw', '.dng', '.orf', '.rw2',
+    '.pef', '.srw', '.x3f', '.raf', '.3fr', '.fff', '.dcr', '.kdc', '.srf',
+    '.mrw', '.nrw', '.rwl', '.iiq', '.heic', '.heif', '.avif'
 }
 
 def setup_logging():
@@ -29,6 +37,20 @@ def setup_logging():
 def is_video_file(file_path):
     """检查文件是否为视频文件"""
     return file_path.suffix.lower() in VIDEO_EXTENSIONS
+
+def is_image_file(file_path):
+    """检查文件是否为图片文件"""
+    return file_path.suffix.lower() in IMAGE_EXTENSIONS
+
+def is_media_file(file_path, file_type):
+    """根据指定类型检查文件是否为媒体文件"""
+    if file_type == 'video':
+        return is_video_file(file_path)
+    elif file_type == 'image':
+        return is_image_file(file_path)
+    elif file_type == 'all':
+        return is_video_file(file_path) or is_image_file(file_path)
+    return False
 
 def get_file_creation_date(file_path):
     """获取文件创建时间"""
@@ -59,8 +81,8 @@ def ensure_folder_exists(folder_path):
     folder_path.mkdir(parents=True, exist_ok=True)
     logging.info(f"文件夹已创建或已存在: {folder_path}")
 
-def copy_video_file(source_file, destination_folder):
-    """复制视频文件到目标文件夹"""
+def copy_media_file(source_file, destination_folder):
+    """复制媒体文件到目标文件夹"""
     try:
         destination_file = destination_folder / source_file.name
         
@@ -82,8 +104,8 @@ def copy_video_file(source_file, destination_folder):
         logging.error(f"复制文件失败 {source_file} -> {destination_folder}: {e}")
         return False
 
-def organize_videos(from_dir, to_dir, device_name):
-    """整理视频文件的主要函数"""
+def organize_videos(from_dir, to_dir, device_name, file_type='video'):
+    """整理媒体文件的主要函数"""
     from_path = Path(from_dir)
     to_path = Path(to_dir)
     
@@ -100,18 +122,21 @@ def organize_videos(from_dir, to_dir, device_name):
     processed_files = 0
     copied_files = 0
     
-    logging.info(f"开始整理视频文件...")
+    file_type_name = '视频' if file_type == 'video' else '图片' if file_type == 'image' else '媒体'
+    
+    logging.info(f"开始整理{file_type_name}文件...")
     logging.info(f"源文件夹: {from_dir}")
     logging.info(f"目标文件夹: {to_dir}")
     logging.info(f"设备名称: {device_name}")
+    logging.info(f"文件类型: {file_type}")
     
     # 遍历源文件夹中的所有文件
     for file_path in from_path.rglob('*'):
         if file_path.is_file():
             total_files += 1
             
-            # 检查是否为视频文件
-            if is_video_file(file_path):
+            # 检查是否为指定类型的媒体文件
+            if is_media_file(file_path, file_type):
                 processed_files += 1
                 
                 # 获取文件创建日期
@@ -125,13 +150,13 @@ def organize_videos(from_dir, to_dir, device_name):
                 ensure_folder_exists(target_folder)
                 
                 # 复制文件
-                if copy_video_file(file_path, target_folder):
+                if copy_media_file(file_path, target_folder):
                     copied_files += 1
     
     # 输出统计信息
     logging.info(f"整理完成!")
     logging.info(f"总文件数: {total_files}")
-    logging.info(f"视频文件数: {processed_files}")
+    logging.info(f"{file_type_name}文件数: {processed_files}")
     logging.info(f"成功复制: {copied_files}")
     
     return True
@@ -139,18 +164,19 @@ def organize_videos(from_dir, to_dir, device_name):
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(
-        description='视频素材文件整理脚本',
+        description='媒体文件整理脚本',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 使用示例:
   python video_organizer.py /path/to/source /path/to/destination "iPhone 15"
-  python video_organizer.py ~/Downloads/videos ~/Videos/organized "GoPro Hero12"
+  python video_organizer.py ~/Downloads/photos ~/Photos/organized "Canon EOS R5" --type image
+  python video_organizer.py ~/Downloads/media ~/Media/organized "GoPro Hero12" --type all
         """
     )
     
     parser.add_argument(
         'from_dir',
-        help='源文件夹路径（包含要整理的视频文件）'
+        help='源文件夹路径（包含要整理的媒体文件）'
     )
     
     parser.add_argument(
@@ -161,6 +187,13 @@ def main():
     parser.add_argument(
         'device_name',
         help='设备名称（将作为文件夹名称的一部分）'
+    )
+    
+    parser.add_argument(
+        '-t', '--type',
+        choices=['video', 'image', 'all'],
+        default='video',
+        help='要整理的文件类型: video (视频), image (图片), all (全部媒体文件，默认: video)'
     )
     
     parser.add_argument(
@@ -179,11 +212,12 @@ def main():
     
     # 执行整理操作
     try:
-        success = organize_videos(args.from_dir, args.to_dir, args.device_name)
+        success = organize_videos(args.from_dir, args.to_dir, args.device_name, args.type)
         if success:
-            print("✅ 视频文件整理完成!")
+            file_type_name = '视频' if args.type == 'video' else '图片' if args.type == 'image' else '媒体'
+            print(f"✅ {file_type_name}文件整理完成!")
         else:
-            print("❌ 视频文件整理失败!")
+            print("❌ 文件整理失败!")
             return 1
     except KeyboardInterrupt:
         print("\n⚠️  操作被用户中断")
