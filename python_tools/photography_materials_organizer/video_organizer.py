@@ -34,6 +34,30 @@ def setup_logging():
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
+def parse_date(date_string):
+    """解析日期字符串，支持多种格式"""
+    if not date_string:
+        return None
+    
+    # 支持的日期格式
+    date_formats = [
+        '%Y-%m-%d',      # 2024-01-15
+        '%Y/%m/%d',      # 2024/01/15
+        '%Y%m%d',        # 20240115
+        '%m-%d-%Y',      # 01-15-2024
+        '%m/%d/%Y',      # 01/15/2024
+        '%d-%m-%Y',      # 15-01-2024
+        '%d/%m/%Y',      # 15/01/2024
+    ]
+    
+    for fmt in date_formats:
+        try:
+            return datetime.strptime(date_string, fmt).date()
+        except ValueError:
+            continue
+    
+    raise ValueError(f"无法解析日期格式: {date_string}。支持的格式: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD, MM-DD-YYYY, MM/DD/YYYY, DD-MM-YYYY, DD/MM/YYYY")
+
 def is_video_file(file_path):
     """检查文件是否为视频文件"""
     return file_path.suffix.lower() in VIDEO_EXTENSIONS
@@ -104,7 +128,7 @@ def copy_media_file(source_file, destination_folder):
         logging.error(f"复制文件失败 {source_file} -> {destination_folder}: {e}")
         return False
 
-def organize_videos(from_dir, to_dir, device_name, file_type='video'):
+def organize_videos(from_dir, to_dir, device_name, file_type='video', start_date=None, end_date=None):
     """整理媒体文件的主要函数"""
     from_path = Path(from_dir)
     to_path = Path(to_dir)
@@ -129,6 +153,10 @@ def organize_videos(from_dir, to_dir, device_name, file_type='video'):
     logging.info(f"目标文件夹: {to_dir}")
     logging.info(f"设备名称: {device_name}")
     logging.info(f"文件类型: {file_type}")
+    if start_date:
+        logging.info(f"起始日期: {start_date.strftime('%Y-%m-%d')}")
+    if end_date:
+        logging.info(f"终止日期: {end_date.strftime('%Y-%m-%d')}")
     
     # 遍历源文件夹中的所有文件
     for file_path in from_path.rglob('*'):
@@ -141,6 +169,12 @@ def organize_videos(from_dir, to_dir, device_name, file_type='video'):
                 
                 # 获取文件创建日期
                 creation_date = get_file_creation_date(file_path)
+                
+                # 检查日期是否在指定范围内
+                if start_date and creation_date.date() < start_date:
+                    continue
+                if end_date and creation_date.date() > end_date:
+                    continue
                 
                 # 创建目标文件夹名称
                 folder_name = create_date_folder_name(creation_date, device_name)
@@ -171,6 +205,8 @@ def main():
   python video_organizer.py /path/to/source /path/to/destination "iPhone 15"
   python video_organizer.py ~/Downloads/photos ~/Photos/organized "Canon EOS R5" --type image
   python video_organizer.py ~/Downloads/media ~/Media/organized "GoPro Hero12" --type all
+  python video_organizer.py ~/Downloads/videos ~/Videos/organized "DJI Mavic" --start-date 2024-01-01 --end-date 2024-12-31
+  python video_organizer.py ~/Downloads/photos ~/Photos/organized "iPhone 15" --start-date 2024/06/01
         """
     )
     
@@ -197,6 +233,18 @@ def main():
     )
     
     parser.add_argument(
+        '--start-date',
+        type=str,
+        help='起始日期，只处理此日期之后的文件。支持格式: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD 等'
+    )
+    
+    parser.add_argument(
+        '--end-date',
+        type=str,
+        help='终止日期，只处理此日期之前的文件。支持格式: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD 等'
+    )
+    
+    parser.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='显示详细日志信息'
@@ -210,9 +258,31 @@ def main():
     
     setup_logging()
     
+    # 解析日期参数
+    start_date = None
+    end_date = None
+    
+    try:
+        if args.start_date:
+            start_date = parse_date(args.start_date)
+            logging.info(f"设置起始日期: {start_date}")
+        
+        if args.end_date:
+            end_date = parse_date(args.end_date)
+            logging.info(f"设置终止日期: {end_date}")
+        
+        # 验证日期范围
+        if start_date and end_date and start_date > end_date:
+            logging.error("起始日期不能晚于终止日期")
+            return 1
+            
+    except ValueError as e:
+        logging.error(f"日期解析错误: {e}")
+        return 1
+    
     # 执行整理操作
     try:
-        success = organize_videos(args.from_dir, args.to_dir, args.device_name, args.type)
+        success = organize_videos(args.from_dir, args.to_dir, args.device_name, args.type, start_date, end_date)
         if success:
             file_type_name = '视频' if args.type == 'video' else '图片' if args.type == 'image' else '媒体'
             print(f"✅ {file_type_name}文件整理完成!")
