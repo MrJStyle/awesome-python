@@ -15,7 +15,7 @@ import logging
 # 支持的视频文件扩展名
 VIDEO_EXTENSIONS = {
     '.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm', 
-    '.m4v', '.3gp', '.mpg', '.mpeg', '.ts', '.mts', '.m2ts', '.insv', '.xml'
+    '.m4v', '.3gp', '.mpg', '.mpeg', '.ts', '.mts', '.m2ts', '.insv', '.lrv', '.xml'
 }
 
 # 支持的图片文件扩展名
