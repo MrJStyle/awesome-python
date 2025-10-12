@@ -1,6 +1,257 @@
 # 媒体文件整理工具
 
-这是一个强大的媒体文件整理工具，可以根据文件创建时间和设备名称自动整理视频和图片文件。提供**命令行**和 **Web UI** 两种使用方式。
+一个强大的媒体文件整理工具，可以根据文件创建时间和设备名称自动整理视频和图片文件。提供 **Web UI** 和**命令行**两种使用方式。
+
+## ✨ 功能特点
+
+- 🎨 **友好的 Web UI**：基于 Gradio 的图形界面，无需记忆命令行参数
+- 🎥 支持 30+ 种视频格式（mp4, avi, mov, mkv 等）
+- 📷 支持 40+ 种图片格式（jpg, png, raw, heic 等）
+- 📅 按创建日期和设备名称自动分类
+- 🎯 支持日期范围过滤
+- 🔄 智能处理文件名冲突（自动添加数字后缀）
+- 📁 递归扫描子文件夹
+- 📊 实时日志和处理统计
+- 🚫 安全复制模式，不删除源文件
+
+## 🚀 快速开始
+
+### 1. 安装 uv（推荐）
+
+本项目使用 [uv](https://github.com/astral-sh/uv) 进行依赖管理：
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 或使用 Homebrew
+brew install uv
+```
+
+### 2. 启动 Web UI
+
+最简单的方式：
+
+```bash
+cd python_tools/photography_materials_organizer
+./start_ui.sh
+```
+
+启动脚本会自动：
+- ✅ 检查 uv 是否安装
+- ✅ 同步依赖（`uv sync`）
+- ✅ 启动 Web UI
+- ✅ 打开浏览器 `http://localhost:7860`
+
+### 3. 使用 Web 界面
+
+在浏览器中填写：
+- **源文件夹**：包含要整理文件的路径
+- **目标文件夹**：整理后的文件存放位置
+- **设备名称**：如 `iPhone 15`、`Canon EOS R5`
+- **文件类型**：选择视频/图片/全部
+- **日期过滤**（可选）：设置起始/终止日期
+
+点击 **"开始整理"** 即可。
+
+## 💻 命令行使用
+
+### 基本用法
+
+```bash
+# 使用 uv（推荐）
+uv run video_organizer.py <源目录> <目标目录> <设备名称>
+
+# 或传统方式
+python video_organizer.py <源目录> <目标目录> <设备名称>
+```
+
+### 示例
+
+```bash
+# 整理视频文件
+uv run video_organizer.py ~/Downloads/videos ~/Videos/organized "iPhone 15"
+
+# 整理图片文件
+uv run video_organizer.py ~/Downloads/photos ~/Photos/organized "Canon EOS R5" --type image
+
+# 整理所有媒体文件
+uv run video_organizer.py ~/Downloads/media ~/Media/organized "DJI Mavic 3" --type all
+
+# 带日期过滤
+uv run video_organizer.py ~/Downloads/photos ~/Photos/2024 "iPhone 15" \
+  --start-date 2024-01-01 --end-date 2024-12-31
+```
+
+### 命令行参数
+
+| 参数 | 说明 |
+|------|------|
+| `from_dir` | 源文件夹路径 |
+| `to_dir` | 目标文件夹路径 |
+| `device_name` | 设备名称 |
+| `-t, --type` | 文件类型：`video`/`image`/`all`（默认：video） |
+| `--start-date` | 起始日期（格式：YYYY-MM-DD） |
+| `--end-date` | 终止日期（格式：YYYY-MM-DD） |
+| `-v, --verbose` | 显示详细日志 |
+| `-h, --help` | 显示帮助信息 |
+
+## 📁 整理结果
+
+文件会按照以下格式组织：
+
+```
+目标文件夹/
+├── 20241001 - iPhone 15/
+│   ├── video1.mp4
+│   └── photo1.jpg
+├── 20241002 - iPhone 15/
+│   └── video2.mp4
+└── 20241005 - iPhone 15/
+    └── photo2.heic
+```
+
+## 📦 支持的文件格式
+
+### 视频格式（30+ 种）
+
+.mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v, .3gp, .mpg, .mpeg, .ts, .mts, .m2ts, .insv, .lrv 等
+
+### 图片格式（40+ 种）
+
+.jpg, .jpeg, .png, .gif, .bmp, .tiff, .webp, .heic, .heif, .raw, .cr2, .nef, .arw, .dng 等
+
+## 🔧 手动安装（不使用 uv）
+
+如果你不想使用 uv：
+
+```bash
+# 安装依赖
+pip install gradio>=4.0.0
+
+# 启动 Web UI
+python video_organizer_ui.py
+
+# 或使用命令行
+python video_organizer.py <源目录> <目标目录> <设备名称>
+```
+
+## 🎯 使用场景
+
+- **旅行照片整理**：按日期和设备分类整理旅行素材
+- **多设备管理**：iPhone、相机、无人机等多设备内容归档
+- **视频剪辑素材**：按时间线组织原始素材，方便后期查找
+- **定期备份**：将媒体文件整理后备份到 NAS 或外置硬盘
+
+## 📝 日期格式
+
+支持多种日期格式：
+- `YYYY-MM-DD`（2024-01-15）
+- `YYYY/MM/DD`（2024/01/15）
+- `YYYYMMDD`（20240115）
+- `MM-DD-YYYY`（01-15-2024）
+- `DD-MM-YYYY`（15-01-2024）
+
+## ⚙️ uv 常用命令
+
+```bash
+# 同步依赖
+uv sync
+
+# 运行脚本
+uv run video_organizer_ui.py
+
+# 添加依赖
+uv add <package-name>
+
+# 查看已安装的包
+uv pip list
+```
+
+更多信息请访问：https://github.com/astral-sh/uv
+
+## ⚠️ 注意事项
+
+- ✅ 采用**复制模式**，不会删除源文件
+- ✅ 文件重名时自动添加数字后缀
+- ✅ 需要对源和目标文件夹有相应的读写权限
+- ✅ 确保目标磁盘有足够空间
+- ✅ 使用文件创建时间（macOS 上是 birthtime）
+
+## 🧪 测试工具
+
+运行演示脚本创建测试数据：
+
+```bash
+uv run demo.py
+```
+
+这会在你的 home 目录创建 `media_organizer_demo` 文件夹，包含测试文件供你练习使用。
+
+## 📄 项目结构
+
+```
+photography_materials_organizer/
+├── video_organizer.py      # 核心功能（命令行工具）
+├── video_organizer_ui.py   # Web UI 界面
+├── demo.py                 # 演示测试脚本
+├── start_ui.sh             # 一键启动脚本
+├── pyproject.toml          # 项目配置
+├── requirements.txt        # 依赖配置
+└── README.md               # 本文档
+```
+
+## 🐛 故障排除
+
+### Q: uv 命令未找到？
+
+A: 重新加载 shell 配置：
+```bash
+source ~/.zshrc  # 或 source ~/.bashrc
+uv --version
+```
+
+### Q: Python 版本不兼容？
+
+A: 本项目需要 Python 3.8+，检查你的版本：
+```bash
+python3 --version
+```
+
+### Q: 依赖同步失败？
+
+A: 清理缓存重试：
+```bash
+uv cache clean
+uv sync
+```
+
+### Q: 想用传统 pip 方式？
+
+A: 完全可以：
+```bash
+pip install gradio>=4.0.0
+python video_organizer_ui.py
+```
+
+## 📚 技术栈
+
+- **Python 3.8+**
+- **Gradio 4.0+** - Web UI 框架
+- **uv** - 现代化的依赖管理工具
+- **标准库** - pathlib, shutil, datetime, logging
+
+## 📜 许可证
+
+MIT License
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+**立即开始**: 运行 `./start_ui.sh` 🚀的媒体文件整理工具，可以根据文件创建时间和设备名称自动整理视频和图片文件。提供**命令行**和 **Web UI** 两种使用方式。
 
 ## 🌟 功能特点
 
