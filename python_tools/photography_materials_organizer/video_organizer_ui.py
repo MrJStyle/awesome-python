@@ -220,16 +220,20 @@ def create_ui():
                 gr.Markdown("### 📅 日期过滤（可选）")
                 
                 with gr.Row():
-                    start_date = gr.Textbox(
+                    start_date = gr.DateTime(
+                        include_time=False,
+                        type="datetime",
                         label="起始日期",
-                        placeholder="例如: 2024-01-01 或 2024/01/01",
-                        info="只处理此日期之后的文件（留空表示不限制）"
+                        info="只处理此日期之后的文件（留空表示不限制）",
+                        value=None
                     )
                     
-                    end_date = gr.Textbox(
+                    end_date = gr.DateTime(
+                        include_time=False,
+                        type="datetime",
                         label="终止日期",
-                        placeholder="例如: 2024-12-31 或 2024/12/31",
-                        info="只处理此日期之前的文件（留空表示不限制）"
+                        info="只处理此日期之前的文件（留空表示不限制）",
+                        value=None
                     )
                 
                 # 操作按钮
@@ -336,7 +340,7 @@ def create_ui():
         )
         
         clear_btn.click(
-            fn=lambda: ("", "", "", "video", "", "", "", gr.Markdown(visible=False)),
+            fn=lambda: ("", "", "", "video", None, None, "", gr.Markdown(visible=False)),
             outputs=[
                 from_dir,
                 to_dir,

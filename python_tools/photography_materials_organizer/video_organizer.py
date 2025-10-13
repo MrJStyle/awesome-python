@@ -8,7 +8,7 @@
 import os
 import shutil
 import argparse
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 import logging
 
@@ -36,8 +36,20 @@ def setup_logging():
 
 def parse_date(date_string):
     """解析日期字符串，支持多种格式"""
-    if not date_string:
+    if date_string is None or date_string == "":
         return None
+    
+    if isinstance(date_string, datetime):
+        return date_string.date()
+    if isinstance(date_string, date):
+        return date_string
+    
+    if isinstance(date_string, str):
+        date_string = date_string.strip()
+        if not date_string:
+            return None
+    else:
+        raise ValueError(f"无法解析日期类型: {type(date_string)}")
     
     # 支持的日期格式
     date_formats = [
