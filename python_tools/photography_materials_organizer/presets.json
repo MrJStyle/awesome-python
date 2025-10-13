@@ -1,0 +1,23 @@
+[
+    {
+        "name": "整理 iPhone 拍摄的视频",
+        "from_dir": "/Users/john/Downloads/iPhone_Videos",
+        "to_dir": "/Users/john/Videos/Organized",
+        "device_name": "iPhone 15 Pro",
+        "file_type": "video"
+    },
+    {
+        "name": "整理相机拍摄的照片",
+        "from_dir": "/Users/john/Downloads/Camera_Photos",
+        "to_dir": "/Users/john/Photos/Organized",
+        "device_name": "Canon EOS R5",
+        "file_type": "image"
+    },
+    {
+        "name": "整理无人机拍摄的所有媒体文件",
+        "from_dir": "/Users/john/Downloads/Drone",
+        "to_dir": "/Users/john/Media/Organized",
+        "device_name": "DJI Mavic 3",
+        "file_type": "all"
+    }
+]

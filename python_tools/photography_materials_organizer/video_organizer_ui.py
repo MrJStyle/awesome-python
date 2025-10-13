@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 import logging
+import json
 from video_organizer import (
     organize_videos,
     parse_date,
@@ -20,6 +21,71 @@ from video_organizer import (
 
 # 设置日志
 setup_logging()
+
+# 预设配置文件路径
+PRESETS_FILE = Path(__file__).parent / "presets.json"
+
+def load_presets():
+    """加载预设配置"""
+    try:
+        if PRESETS_FILE.exists():
+            with open(PRESETS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return []
+    except Exception as e:
+        logging.error(f"加载预设配置失败: {e}")
+        return []
+
+def save_preset(name, from_dir, to_dir, device_name, file_type):
+    """保存新的预设配置"""
+    try:
+        presets = load_presets()
+        
+        # 检查是否已存在同名预设
+        existing_index = None
+        for i, preset in enumerate(presets):
+            if preset.get("name") == name:
+                existing_index = i
+                break
+        
+        new_preset = {
+            "name": name,
+            "from_dir": from_dir,
+            "to_dir": to_dir,
+            "device_name": device_name,
+            "file_type": file_type
+        }
+        
+        if existing_index is not None:
+            # 更新现有预设
+            presets[existing_index] = new_preset
+            message = f"✅ 预设 '{name}' 已更新"
+        else:
+            # 添加新预设
+            presets.append(new_preset)
+            message = f"✅ 预设 '{name}' 已保存"
+        
+        with open(PRESETS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(presets, f, ensure_ascii=False, indent=4)
+        
+        return True, message
+    except Exception as e:
+        logging.error(f"保存预设配置失败: {e}")
+        return False, f"❌ 保存失败: {str(e)}"
+
+def delete_preset(name):
+    """删除预设配置"""
+    try:
+        presets = load_presets()
+        presets = [p for p in presets if p.get("name") != name]
+        
+        with open(PRESETS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(presets, f, ensure_ascii=False, indent=4)
+        
+        return True, f"✅ 预设 '{name}' 已删除"
+    except Exception as e:
+        logging.error(f"删除预设配置失败: {e}")
+        return False, f"❌ 删除失败: {str(e)}"
 
 def format_log_output(message, level="INFO"):
     """格式化日志输出"""
@@ -289,31 +355,55 @@ def create_ui():
         with gr.Accordion("📋 支持的文件格式", open=False):
             gr.Markdown(get_supported_formats())
         
-        # 示例
-        with gr.Accordion("💡 使用示例", open=False):
-            gr.Markdown(
-                """
-                ### 示例 1: 整理 iPhone 拍摄的视频
-                - **源文件夹**: `/Users/john/Downloads/iPhone_Videos`
-                - **目标文件夹**: `/Users/john/Videos/Organized`
-                - **设备名称**: `iPhone 15 Pro`
-                - **文件类型**: 仅视频文件
+        # 预设配置管理
+        with gr.Accordion("💡 预设配置", open=True):
+            gr.Markdown("### 使用预设配置")
+            gr.Markdown("点击预设按钮可以快速填充表单（不包括日期）")
+            
+            # 动态生成预设按钮
+            presets = load_presets()
+            
+            if presets:
+                preset_buttons = []
+                with gr.Row():
+                    for preset in presets:
+                        btn = gr.Button(
+                            f"📌 {preset['name']}", 
+                            variant="secondary",
+                            size="sm"
+                        )
+                        preset_buttons.append((btn, preset))
                 
-                ### 示例 2: 整理相机拍摄的照片
-                - **源文件夹**: `/Users/john/Downloads/Camera_Photos`
-                - **目标文件夹**: `/Users/john/Photos/Organized`
-                - **设备名称**: `Canon EOS R5`
-                - **文件类型**: 仅图片文件
-                - **起始日期**: `2024-06-01`
-                - **终止日期**: `2024-06-30`
+                # 删除预设区域
+                gr.Markdown("---")
+                gr.Markdown("### 删除预设配置")
+                with gr.Row():
+                    delete_preset_dropdown = gr.Dropdown(
+                        choices=[p['name'] for p in presets],
+                        label="选择要删除的预设",
+                        interactive=True
+                    )
+                    delete_preset_btn = gr.Button("🗑️ 删除", variant="stop", size="sm")
                 
-                ### 示例 3: 整理无人机拍摄的所有媒体文件
-                - **源文件夹**: `/Users/john/Downloads/Drone`
-                - **目标文件夹**: `/Users/john/Media/Organized`
-                - **设备名称**: `DJI Mavic 3`
-                - **文件类型**: 所有媒体文件
-                """
-            )
+                delete_result = gr.Markdown(visible=False)
+            else:
+                gr.Markdown("*暂无预设配置，请先保存一个预设。*")
+                preset_buttons = []
+            
+            # 保存新预设
+            gr.Markdown("---")
+            gr.Markdown("### 保存新预设配置")
+            gr.Markdown("将当前表单值保存为预设（不包括日期）")
+            
+            with gr.Row():
+                preset_name = gr.Textbox(
+                    label="预设名称",
+                    placeholder="例如: 我的 iPhone 视频",
+                    scale=3
+                )
+                save_preset_btn = gr.Button("💾 保存预设", variant="primary", size="sm", scale=1)
+            
+            save_result = gr.Markdown(visible=False)
         
         # 事件处理
         def update_result_visibility(log, result):
@@ -321,6 +411,56 @@ def create_ui():
             if result:
                 return gr.Markdown(value=result, visible=True)
             return gr.Markdown(visible=False)
+        
+        def load_preset_values(preset_data):
+            """加载预设值到表单"""
+            return (
+                preset_data.get('from_dir', ''),
+                preset_data.get('to_dir', ''),
+                preset_data.get('device_name', ''),
+                preset_data.get('file_type', 'video')
+            )
+        
+        def save_preset_handler(name, from_dir_val, to_dir_val, device_name_val, file_type_val):
+            """保存预设处理器"""
+            if not name or not name.strip():
+                return gr.Markdown(value="❌ 请输入预设名称", visible=True)
+            
+            if not from_dir_val or not to_dir_val or not device_name_val:
+                return gr.Markdown(value="❌ 请先填写完整的表单信息", visible=True)
+            
+            success, message = save_preset(name.strip(), from_dir_val, to_dir_val, device_name_val, file_type_val)
+            return gr.Markdown(value=message, visible=True)
+        
+        def delete_preset_handler(preset_name):
+            """删除预设处理器"""
+            if not preset_name:
+                return gr.Markdown(value="❌ 请选择要删除的预设", visible=True)
+            
+            success, message = delete_preset(preset_name)
+            return gr.Markdown(value=message, visible=True)
+        
+        # 为每个预设按钮绑定点击事件
+        for btn, preset in preset_buttons:
+            btn.click(
+                fn=lambda p=preset: load_preset_values(p),
+                outputs=[from_dir, to_dir, device_name, file_type]
+            )
+        
+        # 保存预设按钮事件
+        save_preset_btn.click(
+            fn=save_preset_handler,
+            inputs=[preset_name, from_dir, to_dir, device_name, file_type],
+            outputs=[save_result]
+        )
+        
+        # 删除预设按钮事件
+        if presets:
+            delete_preset_btn.click(
+                fn=delete_preset_handler,
+                inputs=[delete_preset_dropdown],
+                outputs=[delete_result]
+            )
         
         organize_btn.click(
             fn=organize_files_wrapper,
