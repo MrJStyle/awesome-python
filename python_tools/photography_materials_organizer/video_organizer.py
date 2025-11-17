@@ -122,23 +122,18 @@ def copy_media_file(source_file, destination_folder):
     try:
         destination_file = destination_folder / source_file.name
         
-        # 如果目标文件已存在，添加数字后缀
-        counter = 1
-        original_name = destination_file.stem
-        extension = destination_file.suffix
-        
-        while destination_file.exists():
-            new_name = f"{original_name}_{counter}{extension}"
-            destination_file = destination_folder / new_name
-            counter += 1
+        # 如果目标文件已存在，则跳过
+        if destination_file.exists():
+            logging.info(f"文件已存在，跳过: {destination_file}")
+            return "skipped"
         
         shutil.copy2(source_file, destination_file)
         logging.info(f"文件已复制: {source_file.name} -> {destination_file}")
-        return True
+        return "copied"
         
     except Exception as e:
         logging.error(f"复制文件失败 {source_file} -> {destination_folder}: {e}")
-        return False
+        return "failed"
 
 def organize_videos(from_dir, to_dir, device_name, file_type='video', start_date=None, end_date=None):
     """整理媒体文件的主要函数"""
@@ -157,6 +152,7 @@ def organize_videos(from_dir, to_dir, device_name, file_type='video', start_date
     total_files = 0
     processed_files = 0
     copied_files = 0
+    skipped_files = 0
     
     file_type_name = '视频' if file_type == 'video' else '图片' if file_type == 'image' else '媒体'
     
@@ -196,14 +192,18 @@ def organize_videos(from_dir, to_dir, device_name, file_type='video', start_date
                 ensure_folder_exists(target_folder)
                 
                 # 复制文件
-                if copy_media_file(file_path, target_folder):
+                result = copy_media_file(file_path, target_folder)
+                if result == "copied":
                     copied_files += 1
+                elif result == "skipped":
+                    skipped_files += 1
     
     # 输出统计信息
     logging.info(f"整理完成!")
     logging.info(f"总文件数: {total_files}")
     logging.info(f"{file_type_name}文件数: {processed_files}")
     logging.info(f"成功复制: {copied_files}")
+    logging.info(f"跳过文件: {skipped_files}")
     
     return True
 
