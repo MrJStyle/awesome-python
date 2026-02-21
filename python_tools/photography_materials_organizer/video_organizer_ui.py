@@ -11,6 +11,8 @@ from pathlib import Path
 from datetime import datetime
 import logging
 import json
+import threading
+import queue
 from video_organizer import (
     organize_videos,
     parse_date,
@@ -110,17 +112,20 @@ def organize_files_wrapper(
     if not from_dir or not os.path.exists(from_dir):
         error_msg = "❌ 源文件夹不存在或未指定"
         log_output += format_log_output(error_msg, "ERROR")
-        return log_output, None
+        yield log_output, None
+        return
     
     if not to_dir:
         error_msg = "❌ 目标文件夹未指定"
         log_output += format_log_output(error_msg, "ERROR")
-        return log_output, None
+        yield log_output, None
+        return
     
     if not device_name:
         error_msg = "❌ 设备名称未指定"
         log_output += format_log_output(error_msg, "ERROR")
-        return log_output, None
+        yield log_output, None
+        return
     
     # 解析日期
     start_date_obj = None
@@ -138,11 +143,13 @@ def organize_files_wrapper(
         if start_date_obj and end_date_obj and start_date_obj > end_date_obj:
             error_msg = "起始日期不能晚于终止日期"
             log_output += format_log_output(error_msg, "ERROR")
-            return log_output, None
+            yield log_output, None
+            return
             
     except ValueError as e:
         log_output += format_log_output(f"日期解析错误: {e}", "ERROR")
-        return log_output, None
+        yield log_output, None
+        return
     
     # 记录配置信息
     log_output += format_log_output(f"源文件夹: {from_dir}")
@@ -152,52 +159,80 @@ def organize_files_wrapper(
     
     # 创建自定义日志处理器来捕获日志
     class GradioLogHandler(logging.Handler):
-        def __init__(self):
+        def __init__(self, log_queue):
             super().__init__()
-            self.logs = []
+            self.log_queue = log_queue
         
         def emit(self, record):
             log_entry = self.format(record)
-            self.logs.append(log_entry)
+            self.log_queue.put(log_entry)
     
-    handler = GradioLogHandler()
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    log_queue = queue.Queue()
+    handler = GradioLogHandler(log_queue)
+    handler.setFormatter(logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
     logger = logging.getLogger()
     logger.addHandler(handler)
     
+    # 立即返回初始日志
+    yield log_output, gr.Markdown(visible=False)
+    
+    def worker():
+        try:
+            success = organize_videos(
+                from_dir,
+                to_dir,
+                device_name,
+                file_type,
+                start_date_obj,
+                end_date_obj
+            )
+            log_queue.put(("_DONE_", success))
+        except Exception as e:
+            log_queue.put(("_ERROR_", str(e)))
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+    
     try:
-        # 执行整理操作
-        progress(0, desc="正在扫描文件...")
-        
-        success = organize_videos(
-            from_dir,
-            to_dir,
-            device_name,
-            file_type,
-            start_date_obj,
-            end_date_obj
-        )
-        
-        # 获取日志输出
-        for log_entry in handler.logs:
-            log_output += log_entry + "\n"
-        
-        if success:
-            file_type_name = '视频' if file_type == 'video' else '图片' if file_type == 'image' else '媒体'
-            success_msg = f"✅ {file_type_name}文件整理完成!"
-            log_output += format_log_output(success_msg, "SUCCESS")
+        while True:
+            # 批量获取日志，避免界面卡顿
+            messages_received = False
+            while True:
+                try:
+                    # 第一个元素设置超时，后续非阻塞获取
+                    timeout = 0.1 if not messages_received else 0.0
+                    msg = log_queue.get(timeout=timeout)
+                    
+                    if isinstance(msg, tuple):
+                        if msg[0] == "_DONE_":
+                            success = msg[1]
+                            if success:
+                                file_type_name = '视频' if file_type == 'video' else '图片' if file_type == 'image' else '媒体'
+                                success_msg = f"✅ {file_type_name}文件整理完成!"
+                                log_output += format_log_output(success_msg, "SUCCESS")
+                                yield log_output, gr.Markdown(value=f"✅ 整理成功！文件已保存到: {to_dir}", visible=True)
+                            else:
+                                error_msg = "❌ 文件整理失败"
+                                log_output += format_log_output(error_msg, "ERROR")
+                                yield log_output, gr.Markdown(value="❌ 文件整理失败", visible=True)
+                            return
+                        elif msg[0] == "_ERROR_":
+                            error_msg = f"发生错误: {msg[1]}"
+                            log_output += format_log_output(error_msg, "ERROR")
+                            yield log_output, gr.Markdown(value=error_msg, visible=True)
+                            return
+                    else:
+                        log_output += msg + "\n"
+                        messages_received = True
+                        
+                except queue.Empty:
+                    break
             
-            # 返回成功状态和日志
-            return log_output, f"✅ 整理成功！文件已保存到: {to_dir}"
-        else:
-            error_msg = "❌ 文件整理失败"
-            log_output += format_log_output(error_msg, "ERROR")
-            return log_output, None
-            
-    except Exception as e:
-        error_msg = f"发生错误: {str(e)}"
-        log_output += format_log_output(error_msg, "ERROR")
-        return log_output, None
+            if messages_received:
+                yield log_output, gr.Markdown(visible=False)
+                
+            if not thread.is_alive() and log_queue.empty():
+                break
     finally:
         logger.removeHandler(handler)
 
