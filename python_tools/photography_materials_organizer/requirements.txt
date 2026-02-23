@@ -1,6 +1,0 @@
-# /// script
-# requires-python = ">=3.8"
-# dependencies = [
-#     "gradio>=4.0.0",
-# ]
-# ///
