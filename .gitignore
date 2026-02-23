@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Flutter projects: un-ignore lib/ (overrides the Python `lib/` rule above)
+!**/photography_organizer_mac/lib/
+!**/photography_organizer_mac/lib/**
+
+# Flutter build artifacts
+**/photography_organizer_mac/build/
+**/photography_organizer_mac/.dart_tool/
